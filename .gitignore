@@ -1,0 +1,17 @@
+.spec
+.venv
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+venv/
+
+# 測試輸出
+reports/*
+!reports/.gitkeep
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store

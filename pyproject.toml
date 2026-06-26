@@ -1,0 +1,18 @@
+[project]
+name = "momo-practice"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pytest>=9.1.1",
+    "selenium>=4.45.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --strict-markers"
+markers = [
+    "smoke: 最基本的核心流程驗證",
+    "search: 搜尋功能相關測試",
+]
