@@ -80,6 +80,8 @@
 
 ## TC → PO Scope 對照
 
+## TC → PO Scope 對照
+
 | TC | HomePage | SearchResultsPage | ProductCard |
 |----|----------|-------------------|-------------|
 | IN-01 | ✅ | | |

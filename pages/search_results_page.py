@@ -1,30 +1,71 @@
-"""搜尋結果頁 — 提供讓測試斷言用的查詢方法。
+"""搜尋結果頁 — 提供排序、價格篩選與結果取值，供測試斷言。
 
-注意：以下 Locator 為初版骨架，實際的 selector 需在探索網站後校正。
+結果頁為 momo 舊版 UI（無 data-testid），改用 id / class / 結構選擇器。
 """
+from __future__ import annotations
+
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
 
 from pages.base_page import BasePage
+from pages.product_card import ProductCard
 
 
 class SearchResultsPage(BasePage):
-    # TODO: 探索網站後確認以下定位子
-    RESULT_ITEMS = (By.CSS_SELECTOR, "li.goodsItemLi")
-    RESULT_TITLES = (By.CSS_SELECTOR, "li.goodsItemLi p.prdName")
-    NO_RESULT_HINT = (By.CSS_SELECTOR, ".noResultArea")
-    RESULT_COUNT_TEXT = (By.CSS_SELECTOR, ".totalTxt")
+    SEARCH_INPUT = (By.ID, "header-search-input")  # 頂部搜尋框（驗關鍵字保留）
+    SORT_PRICE = (By.XPATH, "//li[contains(@class,'priceHeight') and normalize-space()='價格']")
+    SORT_RATING = (By.XPATH, "//li[contains(@class,'priceHeight') and normalize-space()='評價']")
+    MIN_PRICE_INPUT = (By.ID, "priceS")
+    MAX_PRICE_INPUT = (By.ID, "priceE")
+    CONFIRM_BUTTON = (By.CSS_SELECTOR, "a.priceBtn")
+    PRODUCT_CARDS = (By.CSS_SELECTOR, "li.listAreaLi")
 
-    def result_count(self) -> int:
-        """目前結果頁顯示的商品數量。"""
-        return len(self.driver.find_elements(*self.RESULT_ITEMS))
+    # --- 查詢 ---
+    def get_keyword_in_box(self) -> str:
+        """讀取結果頁頂部搜尋框現值。"""
+        return self.find(self.SEARCH_INPUT).get_attribute("value")
 
-    def result_titles(self) -> list[str]:
-        """所有商品標題文字，供關鍵字比對使用。"""
-        return [e.text for e in self.find_all(self.RESULT_TITLES)]
+    def products(self, exclude_ads: bool = True) -> list[ProductCard]:
+        """回傳結果卡片清單；預設過濾掉廣告卡（`.sponsor-tag`）。"""
+        self.find(self.PRODUCT_CARDS)  # 等待至少一張卡片出現
+        cards = [ProductCard(el) for el in self.driver.find_elements(*self.PRODUCT_CARDS)]
+        return [c for c in cards if not c.is_ad()] if exclude_ads else cards
 
-    def has_results(self) -> bool:
-        return self.result_count() > 0
+    def product_titles(self, exclude_ads: bool = True) -> list[str]:
+        return [c.title for c in self.products(exclude_ads) if c.title]
 
-    def is_no_result(self) -> bool:
-        """是否顯示『查無結果』提示。"""
-        return self.is_visible(self.NO_RESULT_HINT)
+    # --- 排序 ---
+    def sort_by_price(self) -> "SearchResultsPage":
+        """點價格排序（重複呼叫可切換遞增 / 遞減）。"""
+        self._refresh_results(lambda: self.click(self.SORT_PRICE))
+        return self
+
+    def sort_by_rating(self) -> "SearchResultsPage":
+        self._refresh_results(lambda: self.click(self.SORT_RATING))
+        return self
+
+    # --- 價格篩選 ---
+    def set_price_range(self, min_price: int | None = None, max_price: int | None = None) -> "SearchResultsPage":
+        """填入最低 / 最高價；傳 None 則略過該欄。"""
+        if min_price is not None:
+            self.type_text(self.MIN_PRICE_INPUT, str(min_price))
+        if max_price is not None:
+            self.type_text(self.MAX_PRICE_INPUT, str(max_price))
+        return self
+
+    def apply_price_filter(self) -> "SearchResultsPage":
+        """按「確認」套用價格篩選。"""
+        self._refresh_results(lambda: self.click(self.CONFIRM_BUTTON))
+        return self
+
+    # --- 內部 ---
+    def _refresh_results(self, action) -> None:
+        """執行會重整結果列表的動作後，等待舊卡片失效並確認新列表載入。"""
+        old_cards = self.driver.find_elements(*self.PRODUCT_CARDS)
+        action()
+        if old_cards:
+            try:
+                self.wait.until(EC.staleness_of(old_cards[0]))
+            except Exception:
+                pass  # 若未觸發整頁重載則略過，下一行仍會等待卡片
+        self.find(self.PRODUCT_CARDS)
