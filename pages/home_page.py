@@ -3,58 +3,53 @@
 首頁為新版 UI，搜尋元件帶 data-testid，優先採用；自動完成下拉無 testid，
 改用結構選擇器。
 """
+
 from __future__ import annotations
 
+from typing import Self
+
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
 
 from config.settings import settings
-from pages.base_page import BasePage
+from pages.base_page import BasePage, Locator
 from pages.search_results_page import SearchResultsPage
 
 
 class HomePage(BasePage):
-    SEARCH_INPUT = (By.CSS_SELECTOR, '[data-testid="header-search-input"]')
-    SEARCH_BUTTON = (By.CSS_SELECTOR, '[data-testid="header-search-button"]')
-    SUGGESTION_DROPDOWN = (By.CSS_SELECTOR, '[class*="mu-z-dropdown"]')
-    SUGGESTION_ITEMS = (By.CSS_SELECTOR, '[class*="mu-z-dropdown"] button')
-    AD_OVERLAY = (By.CSS_SELECTOR, '[data-testid="ad-overlay"]')
+    SEARCH_INPUT: Locator = (By.CSS_SELECTOR, '[data-testid="header-search-input"]')
+    SEARCH_BUTTON: Locator = (By.CSS_SELECTOR, '[data-testid="header-search-button"]')
+    SUGGESTION_DROPDOWN: Locator = (By.CSS_SELECTOR, '[class*="mu-z-dropdown"]')
+    SUGGESTION_ITEMS: Locator = (By.CSS_SELECTOR, '[class*="mu-z-dropdown"] button')
+    AD_OVERLAY: Locator = (By.CSS_SELECTOR, '[data-testid="ad-overlay"]')
+    AD_CLOSE_BUTTON: Locator = (By.CSS_SELECTOR, '[data-testid="close-button-container"]')
 
-    def open_home(self) -> "HomePage":
+    def open_home(self) -> Self:
         self.open(settings.BASE_URL)
-        self._dismiss_first_visit_ad()
+        self.dismiss_first_visit_ad()
         return self
 
-    def _dismiss_first_visit_ad(self) -> None:
-        """首次造訪會延遲跳出全螢幕廣告遮罩並攔截點擊，數秒後自行消失。
+    def dismiss_first_visit_ad(self) -> None:
+        """首次造訪會延遲跳出全螢幕廣告遮罩並攔截點擊；主動點關閉鈕關掉它。
 
-        遮罩是延遲彈出的，故先等它出現、再等它消失；若一直沒出現則略過。
-        TODO: 暫以「等待遮罩自行消失」繞過，之後改為主動關閉以縮短等待。
+        遮罩為延遲彈出，故等關閉鈕可點再點；若一直沒出現（非首次造訪）則略過。
         """
         try:
-            WebDriverWait(self.driver, 5).until(
-                EC.presence_of_element_located(self.AD_OVERLAY)
-            )
-        except Exception:
-            return  # 沒有遮罩就直接繼續
-        try:
-            WebDriverWait(self.driver, 10).until(
-                EC.invisibility_of_element_located(self.AD_OVERLAY)
-            )
-        except Exception:
-            pass
+            self.click(self.AD_CLOSE_BUTTON, timeout=5)
+            self.wait_invisible(self.AD_OVERLAY, timeout=5)
+        except TimeoutException:
+            pass  # 沒有廣告就略過
 
     # --- 輸入框 ---
-    def type_keyword(self, text: str) -> "HomePage":
+    def type_keyword(self, text: str) -> Self:
         self.type_text(self.SEARCH_INPUT, text)
         return self
 
     def get_input_value(self) -> str:
-        return self.find(self.SEARCH_INPUT).get_attribute("value")
+        return self.find(self.SEARCH_INPUT).get_attribute("value") or ""
 
-    def clear_input(self) -> "HomePage":
+    def clear_input(self) -> Self:
         """以鍵盤全選後刪除，確保觸發前端事件、讓自動完成收合。"""
         box = self.find(self.SEARCH_INPUT)
         box.send_keys(Keys.CONTROL, "a")
@@ -70,6 +65,10 @@ class HomePage(BasePage):
         self.click(self.SEARCH_BUTTON)
         return SearchResultsPage(self.driver)
 
+    def search(self, keyword: str) -> SearchResultsPage:
+        """輸入關鍵字並按搜尋鈕，回傳結果頁。"""
+        return self.type_keyword(keyword).click_search()
+
     def is_search_button_ready(self) -> bool:
         btn = self.find(self.SEARCH_BUTTON)
         return btn.is_displayed() and btn.is_enabled()
@@ -77,6 +76,10 @@ class HomePage(BasePage):
     # --- 自動完成 ---
     def is_suggestion_visible(self) -> bool:
         return self.is_visible(self.SUGGESTION_DROPDOWN)
+
+    def wait_suggestions_hidden(self, timeout: int = 5) -> bool:
+        """等待自動完成下拉消失（給清空輸入等情境用，避免可見性逾時的長等待）。"""
+        return self.wait_invisible(self.SUGGESTION_DROPDOWN, timeout)
 
     def suggestions(self) -> list[str]:
         return [e.text.strip() for e in self.find_all(self.SUGGESTION_ITEMS) if e.text.strip()]

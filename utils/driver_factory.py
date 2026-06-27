@@ -9,7 +9,7 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 from config.settings import settings
 
 
-def create_driver() -> webdriver.Remote:
+def create_driver() -> webdriver.Chrome:
     """依 settings 建立並回傳已設定好的 WebDriver。"""
     browser = settings.BROWSER.lower()
 
@@ -21,9 +21,12 @@ def create_driver() -> webdriver.Remote:
 
 def _create_chrome() -> webdriver.Chrome:
     options = ChromeOptions()
+
     if settings.HEADLESS:
         options.add_argument("--headless=new")
-    options.add_argument(f"--window-size={settings.WINDOW_WIDTH},{settings.WINDOW_HEIGHT}")
+        options.add_argument(f"--window-size={settings.WINDOW_WIDTH},{settings.WINDOW_HEIGHT}")
+    else:
+        options.add_argument("--start-maximized")  # headed 模式開啟即最大化
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -33,4 +36,6 @@ def _create_chrome() -> webdriver.Chrome:
 
     driver = webdriver.Chrome(options=options)
     driver.set_page_load_timeout(settings.PAGE_LOAD_TIMEOUT)
+    if not settings.HEADLESS:
+        driver.maximize_window()  # 確保視窗最大化（--start-maximized 的雙重保險）
     return driver

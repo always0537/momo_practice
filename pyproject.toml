@@ -1,7 +1,7 @@
 [project]
 name = "momo-practice"
 version = "0.1.0"
-description = "Add your description here"
+description = "momo 購物網搜尋功能的 Selenium + pytest UI 自動化測試（POM）"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
