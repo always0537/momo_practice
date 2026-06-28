@@ -8,22 +8,20 @@ from __future__ import annotations
 
 from typing import Self
 
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from config.settings import settings
-from pages.base_page import BasePage, Locator
+from pages.base_page import BasePage
 from pages.search_results_page import SearchResultsPage
 
 
 class HomePage(BasePage):
-    SEARCH_INPUT: Locator = (By.CSS_SELECTOR, '[data-testid="header-search-input"]')
-    SEARCH_BUTTON: Locator = (By.CSS_SELECTOR, '[data-testid="header-search-button"]')
-    SUGGESTION_DROPDOWN: Locator = (By.CSS_SELECTOR, '[class*="mu-z-dropdown"]')
-    SUGGESTION_ITEMS: Locator = (By.CSS_SELECTOR, '[class*="mu-z-dropdown"] button')
-    AD_OVERLAY: Locator = (By.CSS_SELECTOR, '[data-testid="ad-overlay"]')
-    AD_CLOSE_BUTTON: Locator = (By.CSS_SELECTOR, '[data-testid="close-button-container"]')
+    SEARCH_INPUT = '[data-testid="header-search-input"]'
+    SEARCH_BUTTON = '[data-testid="header-search-button"]'
+    SUGGESTION_DROPDOWN = '[class*="mu-z-dropdown"]'
+    SUGGESTION_ITEMS = '[class*="mu-z-dropdown"] button'
+    AD_OVERLAY = '[data-testid="ad-overlay"]'
+    AD_CLOSE_BUTTON = '[data-testid="close-button-container"]'
 
     def open_home(self) -> Self:
         self.open(settings.BASE_URL)
@@ -36,54 +34,70 @@ class HomePage(BasePage):
         遮罩為延遲彈出，故等關閉鈕可點再點；若一直沒出現（非首次造訪）則略過。
         """
         try:
-            self.click(self.AD_CLOSE_BUTTON, timeout=5)
-            self.wait_invisible(self.AD_OVERLAY, timeout=5)
-        except TimeoutException:
+            self.page.locator(self.AD_CLOSE_BUTTON).click(timeout=5000)
+            self.page.locator(self.AD_OVERLAY).wait_for(state="hidden", timeout=5000)
+        except PlaywrightTimeoutError:
             pass  # 沒有廣告就略過
 
     # --- 輸入框 ---
     def type_keyword(self, text: str) -> Self:
-        self.type_text(self.SEARCH_INPUT, text)
+        """清空後逐字輸入關鍵字，確保觸發前端事件（自動完成需要真實鍵盤輸入）。"""
+        box = self.page.locator(self.SEARCH_INPUT)
+        box.click()
+        box.fill("")
+        box.press_sequentially(text, delay=50)
         return self
 
     def get_input_value(self) -> str:
-        return self.find(self.SEARCH_INPUT).get_attribute("value") or ""
+        return self.page.locator(self.SEARCH_INPUT).input_value()
 
     def clear_input(self) -> Self:
         """以鍵盤全選後刪除，確保觸發前端事件、讓自動完成收合。"""
-        box = self.find(self.SEARCH_INPUT)
-        box.send_keys(Keys.CONTROL, "a")
-        box.send_keys(Keys.DELETE)
+        box = self.page.locator(self.SEARCH_INPUT)
+        box.click()
+        box.press("Control+a")
+        box.press("Delete")
         return self
 
     # --- 送出 ---
     def submit_by_enter(self) -> SearchResultsPage:
-        self.find(self.SEARCH_INPUT).send_keys(Keys.ENTER)
-        return SearchResultsPage(self.driver)
+        self.page.locator(self.SEARCH_INPUT).press("Enter")
+        return SearchResultsPage(self.page)
 
     def click_search(self) -> SearchResultsPage:
-        self.click(self.SEARCH_BUTTON)
-        return SearchResultsPage(self.driver)
+        self.page.locator(self.SEARCH_BUTTON).click()
+        return SearchResultsPage(self.page)
 
     def search(self, keyword: str) -> SearchResultsPage:
         """輸入關鍵字並按搜尋鈕，回傳結果頁。"""
         return self.type_keyword(keyword).click_search()
 
     def is_search_button_ready(self) -> bool:
-        btn = self.find(self.SEARCH_BUTTON)
-        return btn.is_displayed() and btn.is_enabled()
+        btn = self.page.locator(self.SEARCH_BUTTON)
+        btn.wait_for(state="visible")  # 可見即返回，故下方只需再確認是否可點
+        return btn.is_enabled()
 
     # --- 自動完成 ---
     def is_suggestion_visible(self) -> bool:
-        return self.is_visible(self.SUGGESTION_DROPDOWN)
+        try:
+            self.page.locator(self.SUGGESTION_DROPDOWN).wait_for(state="visible")
+            return True
+        except PlaywrightTimeoutError:
+            return False
 
-    def wait_suggestions_hidden(self, timeout: int = 5) -> bool:
+    def wait_suggestions_hidden(self, timeout: int = 5000) -> bool:
         """等待自動完成下拉消失（給清空輸入等情境用，避免可見性逾時的長等待）。"""
-        return self.wait_invisible(self.SUGGESTION_DROPDOWN, timeout)
+        try:
+            self.page.locator(self.SUGGESTION_DROPDOWN).wait_for(state="hidden", timeout=timeout)
+            return True
+        except PlaywrightTimeoutError:
+            return False
 
     def suggestions(self) -> list[str]:
-        return [e.text.strip() for e in self.find_all(self.SUGGESTION_ITEMS) if e.text.strip()]
+        items = self.page.locator(self.SUGGESTION_ITEMS)
+        items.first.wait_for()
+        return [t.strip() for t in items.all_inner_texts() if t.strip()]
 
     def click_suggestion(self, index: int = 0) -> SearchResultsPage:
-        self.find_all(self.SUGGESTION_ITEMS)[index].click()
-        return SearchResultsPage(self.driver)
+        self.page.locator(self.SUGGESTION_ITEMS).nth(index).click()
+        return SearchResultsPage(self.page)

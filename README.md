@@ -1,20 +1,24 @@
 # momo 搜尋功能自動化測試
 
-針對 [momo 購物網](https://www.momoshop.com.tw/) 首頁的搜尋功能進行自動化 UI 測試，採用 **Selenium + pytest**，並以 **Page Object Model (POM)** 組織程式碼。
+針對 [momo 購物網](https://www.momoshop.com.tw/) 首頁的搜尋功能進行自動化 UI 測試，採用 **Playwright + pytest**，並以 **Page Object Model (POM)** 組織程式碼。
 
 ## 環境需求
 
 - Python 3.13+
 - [uv](https://docs.astral.sh/uv/)
-- Google Chrome（Selenium 4.6+ 內建 Selenium Manager，會自動下載對應的 chromedriver）
-
-> 目前僅支援 Chrome；`BROWSER` 設為其他值會丟出 `ValueError`。
+- Playwright 瀏覽器（以 `playwright install` 安裝，預設使用內建 Chromium，跨機最穩定）
 
 ## 安裝
 
 ```bash
+# 安裝 Python 套件
 uv sync
+
+# 安裝 Playwright 瀏覽器（預設只需 chromium）
+uv run playwright install chromium
 ```
+
+> 若想改用其他引擎（firefox / webkit），請一併 `uv run playwright install firefox webkit`。
 
 ## 執行測試
 
@@ -35,19 +39,22 @@ HEADLESS=false uv run pytest
 DEBUG=true uv run pytest -s
 ```
 
+> 測試失敗時會自動截圖到 `reports/<測試名稱>.png`。
+
 ## 可用環境變數
 
 | 變數 | 預設值 | 說明 |
 |------|--------|------|
 | `MOMO_BASE_URL` | `https://www.momoshop.com.tw/` | 受測站台 |
-| `BROWSER` | `chrome` | 瀏覽器（目前僅支援 chrome） |
+| `BROWSER` | `chromium` | Playwright 引擎（chromium / firefox / webkit） |
+| `CHANNEL` | （空） | 改用系統瀏覽器通道（如 `chrome`、`msedge`）；留空用內建瀏覽器 |
 | `HEADLESS` | `true` | 是否無頭模式 |
 | `DEBUG` | `false` | `true` 等同 `LOG_LEVEL=DEBUG` |
 | `LOG_LEVEL` | `INFO` | 記錄等級（DEBUG / INFO / WARNING…） |
-| `EXPLICIT_WAIT` | `15` | 顯式等待逾時（秒） |
-| `PAGE_LOAD_TIMEOUT` | `30` | 頁面載入逾時（秒） |
-| `WINDOW_WIDTH` | `1920` | 視窗寬度 |
-| `WINDOW_HEIGHT` | `1080` | 視窗高度 |
+| `EXPLICIT_WAIT` | `15` | 元素操作預設逾時（秒，內部換算為毫秒） |
+| `PAGE_LOAD_TIMEOUT` | `30` | 頁面導航逾時（秒，內部換算為毫秒） |
+| `WINDOW_WIDTH` | `1920` | viewport 寬度 |
+| `WINDOW_HEIGHT` | `1080` | viewport 高度 |
 
 ## 專案結構
 
@@ -56,12 +63,12 @@ momo_practice/
 ├── config/
 │   └── settings.py              # 集中設定（可由環境變數覆寫）
 ├── pages/                       # Page Object Model
-│   ├── base_page.py             # 共用等待 / 互動封裝
+│   ├── base_page.py             # 共用 page 參照 / 導覽入口
 │   ├── home_page.py             # 首頁搜尋區（輸入框、按鈕、自動完成）
 │   ├── search_results_page.py   # 搜尋結果頁（排序、價格篩選）
 │   └── product_card.py          # 單張商品卡片 component
 ├── utils/
-│   ├── driver_factory.py        # WebDriver 工廠
+│   ├── browser_factory.py       # Playwright 瀏覽器 / context 工廠
 │   └── logger.py                # 統一 logger
 ├── tests/
 │   ├── test_search_input.py     # 輸入框（IN-01〜04）
@@ -72,8 +79,8 @@ momo_practice/
 ├── docs/
 │   ├── test_cases.md            # 測試案例清單
 │   └── pom_design.md            # POM 設計說明
-├── conftest.py                  # pytest fixtures（driver / home_page）
-├── reports/                     # 測試輸出（git 忽略）
+├── conftest.py                  # pytest fixtures（browser / page / home_page）
+├── reports/                     # 測試輸出（失敗截圖；git 忽略）
 └── pyproject.toml
 ```
 

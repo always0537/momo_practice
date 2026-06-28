@@ -8,7 +8,7 @@
 
 | PO | 角色 | 備註 |
 |----|------|------|
-| `BasePage` | 共用等待 / 互動封裝 | 已存在，所有頁面繼承 |
+| `BasePage` | 共用 page 參照 / 導覽入口 | 所有頁面繼承（Playwright Locator 自動等待，無須自封裝顯式等待） |
 | `HomePage` | 首頁搜尋區進入點 | 輸入框、按鈕、自動完成 |
 | `SearchResultsPage` | 搜尋結果頁 | 排序列、價格篩選、結果列表 |
 | `ProductCard` | 單張商品卡片（component） | 由結果頁產生，封裝單卡資料與廣告判斷 |

@@ -1,12 +1,12 @@
 [project]
 name = "momo-practice"
 version = "0.1.0"
-description = "momo 購物網搜尋功能的 Selenium + pytest UI 自動化測試（POM）"
+description = "momo 購物網搜尋功能的 Playwright + pytest UI 自動化測試（POM）"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "pytest>=9.1.1",
-    "selenium>=4.45.0",
+    "pytest>=8.0",
+    "playwright>=1.49.0",
 ]
 
 [tool.pytest.ini_options]
