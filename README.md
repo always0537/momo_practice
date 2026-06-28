@@ -68,7 +68,8 @@ momo_practice/
 │   ├── test_search_button.py    # 搜尋按鈕（BT-01〜02）
 │   ├── test_autocomplete.py     # 自動完成（AC-01〜04）
 │   ├── test_sort.py             # 排序（SO-01〜04）
-│   └── test_price_filter.py     # 價格篩選（PF-01〜03）
+│   ├── test_price_filter.py     # 價格篩選（PF-01〜03）
+│   └── test_search_edge_cases.py # 邊界 / 負向（NR-01、EG-01）
 ├── docs/
 │   ├── test_cases.md            # 測試案例清單
 │   └── pom_design.md            # POM 設計說明

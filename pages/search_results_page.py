@@ -22,6 +22,7 @@ class SearchResultsPage(BasePage):
     MAX_PRICE_INPUT: Locator = (By.ID, "priceE")
     CONFIRM_BUTTON: Locator = (By.CSS_SELECTOR, "a.priceBtn")
     PRODUCT_CARDS: Locator = (By.CSS_SELECTOR, "li.listAreaLi")
+    NO_RESULTS: Locator = (By.CSS_SELECTOR, ".noSearchResultWrapper")  # 查無結果空狀態容器
 
     _min_price: int | None = None
     _max_price: int | None = None
@@ -39,6 +40,14 @@ class SearchResultsPage(BasePage):
 
     def product_titles(self, exclude_ads: bool = True) -> list[str]:
         return [c.title for c in self.products(exclude_ads) if c.title]
+
+    def product_count(self) -> int:
+        """目前頁面的商品卡數量（不等待，供『查無結果』情境直接點數）。"""
+        return len(self.driver.find_elements(*self.PRODUCT_CARDS))
+
+    def is_no_results_shown(self) -> bool:
+        """是否顯示『查無結果』空狀態（搜尋不到符合商品時 momo 會渲染此區塊）。"""
+        return self.is_visible(self.NO_RESULTS)
 
     # --- 排序 ---
     def sort_by_price(self) -> Self:
