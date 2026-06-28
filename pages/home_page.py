@@ -62,11 +62,11 @@ class HomePage(BasePage):
     # --- 送出 ---
     def submit_by_enter(self) -> SearchResultsPage:
         self.page.locator(self.SEARCH_INPUT).press("Enter")
-        return SearchResultsPage(self.page)
+        return SearchResultsPage(self.page).wait_until_loaded()
 
     def click_search(self) -> SearchResultsPage:
         self.page.locator(self.SEARCH_BUTTON).click()
-        return SearchResultsPage(self.page)
+        return SearchResultsPage(self.page).wait_until_loaded()
 
     def search(self, keyword: str) -> SearchResultsPage:
         """輸入關鍵字並按搜尋鈕，回傳結果頁。"""
@@ -100,4 +100,4 @@ class HomePage(BasePage):
 
     def click_suggestion(self, index: int = 0) -> SearchResultsPage:
         self.page.locator(self.SUGGESTION_ITEMS).nth(index).click()
-        return SearchResultsPage(self.page)
+        return SearchResultsPage(self.page).wait_until_loaded()

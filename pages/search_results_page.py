@@ -21,9 +21,22 @@ class SearchResultsPage(BasePage):
     MAX_PRICE_INPUT = "#priceE"
     CONFIRM_BUTTON = "a.priceBtn"
     PRODUCT_CARDS = "li.listAreaLi"
+    NO_RESULTS = ".noSearchResultWrapper"  # 查無結果空狀態容器
 
     _min_price: int | None = None
     _max_price: int | None = None
+
+    # --- 抵達 ---
+    def wait_until_loaded(self) -> Self:
+        """等待已抵達搜尋結果頁且結果區已渲染（商品卡或查無結果空狀態其一出現）。
+
+        Playwright 的 click 不會等待導航完成，導頁方法若點完即回傳，後續讀取（如關鍵字
+        保留、排序列）可能搶在結果頁就緒之前——讀到舊頁或尚未 hydrate 的值而 flaky。
+        故導頁方法回傳前統一呼叫此法，顯式等到結果頁就緒（含查無結果情境）再放行。
+        """
+        self.page.wait_for_url("**/search/**")
+        self.page.locator(f"{self.PRODUCT_CARDS}, {self.NO_RESULTS}").first.wait_for()
+        return self
 
     # --- 查詢 ---
     def get_keyword_in_box(self) -> str:
@@ -39,6 +52,18 @@ class SearchResultsPage(BasePage):
 
     def product_titles(self, exclude_ads: bool = True) -> list[str]:
         return [c.title for c in self.products(exclude_ads) if c.title]
+
+    def product_count(self) -> int:
+        """目前頁面的商品卡數量（不等待，供『查無結果』情境直接點數）。"""
+        return self.page.locator(self.PRODUCT_CARDS).count()
+
+    def is_no_results_shown(self) -> bool:
+        """是否顯示『查無結果』空狀態（搜尋不到符合商品時 momo 會渲染此區塊）。"""
+        try:
+            self.page.locator(self.NO_RESULTS).wait_for(state="visible")
+            return True
+        except PlaywrightTimeoutError:
+            return False
 
     # --- 排序 ---
     def sort_by_price(self) -> Self:
